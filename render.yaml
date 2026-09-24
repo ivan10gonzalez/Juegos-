@@ -3,5 +3,5 @@ services:
     name: juegos-aula
     runtime: static
     branch: main
-    buildCommand: mkdir -p dist && cp index.html gallery.css teatro-cover.svg teatro-del-azar.html styles.css engine.js game.js dist/
+    buildCommand: mkdir -p dist && cp index.html gallery.css teatro-cover.svg teatro-del-azar.html styles.css engine.js game.js reference.css reference.js dist/ && cp -R assets dist/
     staticPublishPath: ./dist

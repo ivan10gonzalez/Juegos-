@@ -1,47 +1,37 @@
-# Teatro del azar — demo educativa
+# Juegos — colección educativa
 
-Proyecto independiente para una clase sobre diseño de juegos de azar. Gráficos SVG y música sintetizada originales. No copia la marca, los recursos ni las reglas del juego mostrado como referencia.
+Abrir `index.html` para elegir un ejemplo. La tarjeta abre la recreación visual; el botón amarillo de cierre vuelve a la galería.
 
-## Abrir
+## Recreación de referencia
 
-Abrir `index.html` en un navegador moderno: primero aparece la galería de ejemplos. La tarjeta Teatro del azar abre `teatro-del-azar.html`; dentro del juego hay un enlace para volver. No necesita instalación, cuentas, claves ni conexión a Internet. Si el navegador restringe archivos locales, desde esta carpeta ejecutar `python3 -m http.server 8080` y abrir `http://localhost:8080`.
+La versión actual usa `assets/reference-frame.jpg`, un fotograma del video facilitado por el usuario. Canvas muestra solo el área del juego (886 × 1483, desde y=249), excluyendo las barras del teléfono y del navegador. Los símbolos de ese fotograma se reutilizan como atlas durante los giros. Se conserva el diseño visible de la grabación; la información de sesión capturada se sustituye por una identificación de demo educativa.
 
-Para un repositorio estático, subir los archivos conservando su estructura. Repositorio de destino: `ivan10gonzalez/Juegos-`.
+El audio opcional `assets/reference-audio.mp3` procede de un fragmento de seis segundos del mismo video, reproducido en bucle. No es la pista original completa del proveedor. Requiere un toque para activarse y se pausa al ocultar la pestaña.
 
-## Sonido
+Los nombres, gráficos y sonidos capturados pertenecen al material de referencia. Este proyecto independiente no implica afiliación con el proveedor y no es el juego comercial original. Antes de redistribuir ese material fuera del uso autorizado, verificar sus permisos.
 
-Tocar el botón ♫ para activar la música y los efectos. Los navegadores requieren una interacción antes de reproducir audio. La melodía se genera con Web Audio, sin MP3 ni servicios externos. Al cambiar de pestaña se suspende. Se puede silenciar en cualquier momento.
+## Alcance interactivo
 
-## Alcance
+Giro, ajuste de fichas, velocidad de animación, sonido, pantalla completa (si el navegador la permite), reinicio y menú. Solo fichas ficticias. Tras diez rondas aparece una pausa de análisis.
 
-- Cinco rodillos, tres filas, estética violeta y símbolos originales.
-- Solo la fila central puntúa, con coincidencias consecutivas desde la izquierda.
-- Fichas ficticias; cada sesión didáctica termina a las diez rondas.
-- Registro de fichas usadas, recibidas y resultado neto; explicación matemática.
-- Sin depósitos, retiros, premios reales, anuncios, cuentas ni datos personales.
-- No implementa un casino, proveedor comercial, motor certificado ni funciones de apuesta real.
+El motor de demostración es simplificado: cinco símbolos equiprobables, coincidencias de izquierda a derecha en la fila central y pagos 15×, 50× y 100× para tres, cuatro o cinco iguales. Su devolución matemática es 96 % y su probabilidad de pago es 4 %. Estos datos no son los del proveedor; la tabla impresa en la imagen es parte de la referencia visual. Esta distinción aparece en Información. No se programan casi premios ni se adapta el azar a la persona.
 
-El modelo usa cinco símbolos equiprobables. Tres iguales exactos pagan 15 veces; cuatro, 50; cinco, 100. Devolución matemática: 96 %. Probabilidad de resultado con pago: 4 %. Los valores son de este modelo ilustrativo, no del juego del video. Una sesión corta puede variar mucho.
+No existen depósitos, retiros, cuentas, premios reales ni conexiones al casino.
 
-## Para la clase
+## Archivos principales
 
-1. Presentar el propósito educativo antes de comenzar.
-2. Comparar algunas rondas con y sin sonido.
-3. Observar el registro neto, no solo el importe recibido.
-4. Abrir «Ver qué hay detrás» y discutir independencia, probabilidades y presentación visual.
-5. Aclarar que construir una interfaz no equivale a operar un casino.
+- `index.html` y `gallery.css`: selector de ejemplos.
+- `teatro-del-azar.html`, `reference.css`, `reference.js`: recreación visual con controles accesibles.
+- `assets/`: fotograma y audio del material facilitado.
+- `engine.js` y `tests.cjs`: modelo didáctico y pruebas matemáticas.
+- `styles.css`, `game.js`, `teatro-cover.svg`: primera versión de gráficos originales, conservada como material del proyecto; no la carga la página actual del juego.
 
-## Archivos
+## Ejecutar y desplegar
 
-- `index.html`, `gallery.css`, `teatro-cover.svg`: galería y portada original.
-- `teatro-del-azar.html`: juego y explicación accesible.
-- `styles.css`: diseño móvil y adaptación a escritorio.
-- `engine.js`: modelo y generación de resultados con Web Crypto.
-- `game.js`: gráficos, interacción y composición de audio.
-- `tests.cjs`: comprueba todas las 3125 filas posibles y los cálculos.
+Abrir `index.html`, o ejecutar `python3 -m http.server 8080` y visitar `http://localhost:8080`. Sin dependencias de ejecución.
 
-Pruebas opcionales: `node tests.cjs` (Node 18+). La demostración no necesita Node.
+Render: sitio estático. El Blueprint `render.yaml` copia los recursos a `dist`. También funciona la configuración manual `echo listo` con Publish Directory `.`.
 
-## Agregar más ejemplos
+Pruebas del modelo: `node tests.cjs`.
 
-Crear una página independiente para el nuevo ejemplo y agregar una tarjeta dentro de `.cards` en `index.html`, con su enlace, título, descripción e imagen local. Actualizar el contador de ejemplos disponibles. Los enlaces son relativos para funcionar también bajo GitHub Pages.
+Para añadir otro ejemplo, crear su página y agregar una tarjeta con enlaces relativos en `index.html`.
