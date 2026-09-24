@@ -22,7 +22,7 @@ for (let c = 0; c < 5; c++) {
   for (let r = 0; r < 3; r++) { const cell = document.createElement('div'); cell.className = 'cell'; cell.innerHTML = symbol(model.SYMBOLS[(c + r) % 5]); reel.append(cell); }
   reels.append(reel);
 }
-$('#paySymbols').innerHTML = model.SYMBOLS.map(symbol).join('');
+$('#paySymbols').innerHTML = model.SYMBOLS.map(kind => `<div class="pay-tile">${symbol(kind)}<small>5 · 100 ×<br>4 · 50 ×<br>3 · 15 ×</small></div>`).join('');
 // Melodía original de feria sintetizada con Web Audio. Solo comienza con un clic.
 let audioContext, musicTimer, master, muted = true, beat = 0;
 const melody = [72, 76, 79, 76, 74, 77, 81, 77, 71, 74, 79, 74, 72, 76, 79, 67, 69, 72, 76, 72, 67, 71, 74, 71];
@@ -85,7 +85,7 @@ $('#spin').addEventListener('click', async () => {
   const stake = Number($('#stake').value);
   if (balance < stake) { $('#status').textContent = 'La demostración no tiene suficientes fichas.'; controls(); return; }
   const result = model.round(balance, stake); // Calcular una sola vez; la animación no cambia el resultado.
-  running = true; const run = ++sequence; controls(); $('#status').textContent = 'Una ronda independiente. La animación no cambia las probabilidades.';
+  running = true; const run = ++sequence; controls(); $('#status').textContent = 'RONDA EN CURSO';
   $('#balance').textContent = fmt(balance - stake); tone(48, .2, .06, 'sine');
   const columns = [...reels.children];
   columns.forEach(column => { column.classList.add('spinning'); [...column.children].forEach(cell => cell.classList.remove('winner')); });
