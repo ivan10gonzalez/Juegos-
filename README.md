@@ -38,3 +38,5 @@ Para añadir otro ejemplo, crear su página y agregar una tarjeta con enlaces re
 
 
 Actualización de referencia del 24/09: pantalla base limpia del segundo video, recorte que excluye la barra Panel, selector de monedas por línea/valor/total, ajustes de autoplay y vista Hyperplay. El audio opcional utiliza 30 segundos de la grabación aportada; se activa desde el menú. Hyperplay simula las rondas sin animación de rodillos y permite pausar. El modelo didáctico conserva el límite de diez rondas por sesión. La fidelidad visual de los diálogos todavía requiere comparación en un navegador; no se afirma una reproducción píxel a píxel.
+
+Rodillos: render continuo por columna con símbolos enmascarados, aceleración y frenado escalonado; el resultado se determina una sola vez antes de animar. Detener el giro acelera su finalización sin cobrar otra ronda. Se respetan las preferencias de movimiento reducido. Validación: tests.cjs, reels.test.cjs, pruebas DOM y renders del canvas real mediante Skia (inicio, movimiento, frenado y parada).

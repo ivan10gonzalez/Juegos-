@@ -3,35 +3,49 @@ const $=s=>document.querySelector(s), canvas=$('#gameCanvas'),ctx=canvas.getCont
 const image=new Image();image.src='assets/reference-frame.jpg';
 // The complete original frame is retained as an atlas. Browser chrome is never drawn.
 const FRAME={x:0,y:318,w:886,h:1414};
-const tiles={star:[21,866,170,123],mask:[21,990,170,123],ruby:[193,744,170,123],emerald:[365,744,166,123],orb:[532,744,167,123]};
 let balance=533340,stake=250,rounds=[],grid=null,busy=false,ready=false,fast=false,animation=0,phase='idle',changed=false,muted=true;
+let statusPatch=null;
+let spinPlan=null,spinElapsed=0,finishRequested=false,lastPayout=0;
 const format=value=>(value/100).toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
 function base(){ctx.drawImage(image,FRAME.x,FRAME.y,FRAME.w,FRAME.h,0,0,886,1414);}
-function cell(kind,c,r){const tile=tiles[kind];ctx.drawImage(image,...tile,21+c*171.5,426+r*123,167,123);}
 function paint(){
  if(!ready)return;base();
- if(grid)for(let c=0;c<5;c++)for(let r=0;r<3;r++)cell(grid[c][r],c,r);
+ if(grid)ReelView.draw(ctx,image,grid,spinPlan,spinElapsed);
  // Visible provenance replaces the captured provider/session identifier.
  ctx.fillStyle='#100015';ctx.fillRect(0,1390,886,32);ctx.fillStyle='#bba9bf';ctx.font='17px Arial';ctx.textAlign='center';ctx.fillText('DEMO EDUCATIVA · FICHAS FICTICIAS · SIN PREMIOS REALES',443,1410);
- if(changed){ctx.fillStyle='#100015';ctx.fillRect(0,1353,886,42);ctx.textAlign='center';ctx.font='bold 29px Arial';ctx.fillStyle='#e9b253';ctx.fillText('CRÉDITO',205,1380);ctx.fillStyle='white';ctx.fillText(format(balance),366,1380);ctx.fillStyle='#e9b253';ctx.fillText('APUESTA',560,1380);ctx.fillStyle='white';ctx.fillText(format(stake),730,1380);}
- if(phase!=='idle'){
-  // Reuse unlettered background from the same controls panel behind status text.
-  ctx.drawImage(image,0,1174,886,75,0,822,886,75);ctx.textAlign='center';ctx.font='900 37px Arial';ctx.fillStyle='white';ctx.fillText(phase==='spin'?'¡BUENA SUERTE!':phase==='end'?'FIN DE LA DEMOSTRACIÓN':'RONDA COMPLETADA',443,877);
+ if(changed){ctx.fillStyle='#100015';ctx.fillRect(0,1353,886,42);ctx.textAlign='center';ctx.font='bold 27px Arial';ctx.fillStyle='#fff';ctx.fillText('CRÉDITO '+format(balance)+' ARS   APUESTA '+format(stake)+' ARS',443,1379);}
+ if(phase==='spin'||phase==='end'||(phase==='complete'&&lastPayout>0)){
+  // This source band is below the original lettering and above the spin button.
+  if(!statusPatch){statusPatch=document.createElement('canvas');statusPatch.width=886;statusPatch.height=100;const p=statusPatch.getContext('2d');p.drawImage(image,0,1132,886,20,0,0,886,100);p.globalCompositeOperation='destination-in';const fade=p.createLinearGradient(0,0,0,100);fade.addColorStop(0,'#0000');fade.addColorStop(.16,'#000');fade.addColorStop(.8,'#000');fade.addColorStop(1,'#0000');p.fillStyle=fade;p.fillRect(0,0,886,100);}
+  ctx.drawImage(statusPatch,0,809);
+  const message=phase==='spin'?'¡BUENA SUERTE!':phase==='end'?'FIN DE LA DEMOSTRACIÓN':'GANANCIA '+format(lastPayout)+' ARS';
+  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 38px Arial Narrow, Arial';ctx.shadowColor='#170020';ctx.shadowBlur=4;ctx.fillStyle='#fff';ctx.fillText(message,443,859,820);ctx.restore();
  }
- if(busy){ctx.fillStyle='#24072c';ctx.beginPath();ctx.arc(443,1072,80,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ff5582';ctx.lineWidth=8;ctx.strokeRect(414,1043,58,58);}
+ if(busy){ctx.save();ctx.fillStyle='#20092bbb';for(const x of [303,586]){ctx.beginPath();ctx.arc(x,1070,36,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#24072c';ctx.beginPath();ctx.arc(443,1072,100,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ff5582';ctx.lineWidth=7;ctx.lineJoin='round';ctx.shadowColor='#ff2678';ctx.shadowBlur=3;ctx.strokeRect(416,1045,54,54);ctx.restore();}
+
 }
-function controls(){const stopped=rounds.length>=10;$('.spin-control').disabled=!ready||busy||stopped;for(const s of ['.plus-control','.minus-control','.stake-control','.reset-control'])$(s).disabled=!ready||busy;$('#resetMenu').disabled=busy;}
+function controls(){const stopped=rounds.length>=10;$('.spin-control').disabled=!ready||stopped;$('.spin-control').setAttribute('aria-label',busy?'Detener los rodillos':'Girar una ronda de demostración');for(const s of ['.plus-control','.minus-control','.stake-control','.reset-control'])$(s).disabled=!ready||busy;$('#resetMenu').disabled=busy;}
 function info(){const used=rounds.reduce((s,r)=>s+r.stake,0),paid=rounds.reduce((s,r)=>s+r.payout,0);$('#summary').textContent=`${rounds.length} rondas · Usadas: ${format(used)} · Recibidas: ${format(paid)} · Neto: ${format(paid-used)} fichas.`;$('#history').replaceChildren();rounds.forEach((r,i)=>{const tr=document.createElement('tr');[String(i+1),format(r.stake),format(r.payout),format(r.payout-r.stake)].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.append(td);});$('#history').append(tr);});if(!$('#info').open)$('#info').showModal();}
 async function audioToggle(){const audio=$('#audio');if(muted){try{await audio.play();muted=false;}catch{$('#status').textContent='Tocá nuevamente para activar el audio.';return;}}else{audio.pause();muted=true;}$('#audioNote').textContent=muted?'DEMO · ♫ apagado':'DEMO · ♫ activado';}
 function changeStake(direction){if(busy)return;const values=[250,500,1000,1250,2000,2500,5000,10000,12500,25000,50000,100000,250000,500000,2500000];let i=values.findIndex(v=>v>=stake);stake=values[Math.max(0,Math.min(values.length-1,i+direction))];changed=true;paint();$('#status').textContent='Fichas por ronda: '+format(stake);}
-function reset(){if(busy)return;clearInterval(autoTimer);remaining=0;balance=533340;rounds=[];grid=null;phase='idle';changed=stake!==250;paint();controls();$('#status').textContent='Demostración reiniciada.';}
+function reset(){if(busy)return;clearInterval(autoTimer);remaining=0;balance=533340;rounds=[];grid=null;spinPlan=null;lastPayout=0;phase='idle';changed=stake!==250;paint();controls();$('#status').textContent='Demostración reiniciada.';}
 $('.spin-control').addEventListener('click',()=>{
- if(!ready||busy||rounds.length>=10)return;
+ if(busy){finishRequested=true;return;}
+ if(!ready||rounds.length>=10)return;
  if(balance<stake){$('#status').textContent='Fichas ficticias insuficientes.';return;}
- const result=AulaAzar.round(balance,stake),spent=stake;balance-=spent;changed=true;busy=true;phase='spin';controls();$('#status').textContent='Girando una ronda de demostración.';
- const start=performance.now(),duration=matchMedia('(prefers-reduced-motion: reduce)').matches?180:fast?650:1900;
- function frame(now){const elapsed=now-start;if(elapsed<duration){grid=Array.from({length:5},(_,c)=>elapsed>duration-500+c*90?result.grid[c]:Array.from({length:3},(_,r)=>AulaAzar.SYMBOLS[(Math.floor(elapsed/70)+c+r)%5]));paint();animation=requestAnimationFrame(frame);return;}
- balance=result.balance;grid=result.grid;rounds.push({stake:spent,payout:result.payout});busy=false;phase=rounds.length>=10?'end':'complete';paint();controls();$('#status').textContent=`Ronda ${rounds.length}. Recibidas ${format(result.payout)}. Saldo ${format(balance)} fichas ficticias.`;if(rounds.length>=10)info();}
+ const before=grid||ReelView.initial,result=AulaAzar.round(balance,stake),spent=stake;
+ balance-=spent;changed=true;busy=true;phase='spin';lastPayout=0;finishRequested=false;
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+ spinPlan=ReelView.plan(before,result.grid,fast,reduced);grid=result.grid;spinElapsed=0;controls();
+ $('#status').textContent='Girando una ronda de demostración.';
+ const start=performance.now(),duration=Math.max(...spinPlan.map(s=>s.duration));
+ function frame(now){spinElapsed=finishRequested?duration:now-start;
+  if(spinElapsed<duration){paint();animation=requestAnimationFrame(frame);return;}
+  balance=result.balance;lastPayout=result.payout;grid=result.grid;spinPlan=null;
+  rounds.push({stake:spent,payout:result.payout});busy=false;phase=rounds.length>=10?'end':'complete';paint();controls();
+  $('#status').textContent=`Ronda ${rounds.length}. Recibidas ${format(result.payout)}. Saldo ${format(balance)} fichas ficticias.`;
+  if(rounds.length>=10)info();
+ }
  animation=requestAnimationFrame(frame);
 });
 $('.plus-control').addEventListener('click',()=>changeStake(1));$('.minus-control').addEventListener('click',()=>changeStake(-1));$('.reset-control').addEventListener('click',()=>$('#autoplay').showModal());$('.info-control').addEventListener('click',()=>$('#rules').showModal());$('.sound-control').addEventListener('click',()=>$('#hyperplay').showModal());$('.menu-control').addEventListener('click',()=>$('#menu').showModal());$('.stake-control').addEventListener('click',()=>(stakeFields(),$('#stakes').showModal()));$('.speed-control').addEventListener('click',()=>{fast=!fast;$('.speed-control').setAttribute('aria-pressed',String(fast));$('#status').textContent=fast?'Animación rápida':'Animación normal';});
