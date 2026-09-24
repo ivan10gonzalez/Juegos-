@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: juegos-aula
+    runtime: static
+    branch: main
+    buildCommand: mkdir -p dist && cp index.html gallery.css teatro-cover.svg teatro-del-azar.html styles.css engine.js game.js dist/
+    staticPublishPath: ./dist
