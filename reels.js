@@ -11,26 +11,31 @@
  };
  const initial=[['gem','star','mask'],['ruby','ruby','ruby'],['emerald','emerald','ruby'],['orb','orb','star'],['gem','gem','star']];
  function progress(t){t=Math.max(0,Math.min(1,t)); // integrated acceleration, cruise, deceleration
-  const a=.14,b=.58,area=a/2+(b-a)+(1-b)/2;
+  const a=.065,b=.88,area=a/2+(b-a)+(1-b)/2;
   if(t<a)return t*t/(2*a*area);
   if(t<b)return (a/2+t-a)/area;
   const u=t-b;return (a/2+b-a+u-u*u/(2*(1-b)))/area;
  }
- function plan(before,result,fast,reduced){return result.map((end,c)=>{const steps=reduced?0:12+c*2;const sequence=Array.from({length:steps+5},(_,i)=>Object.keys(art)[(i*3+c+i%4)%6]);before[c].forEach((k,r)=>sequence[steps+r]=k);end.forEach((k,r)=>sequence[r]=k);return {steps,sequence,duration:reduced?150:(fast?650:1600)+c*(fast?70:150)};});}
- const sprites=new Map();
- function drawSymbol(ctx,image,kind,x,y){const a=art[kind],sw=a.box[2],sh=a.box[3],dx=x+(W-sw)/2,dy=y+(H-sh)/2;
+ function plan(before,result,fast,reduced){return result.map((end,c)=>{const steps=reduced?0:24+c*8;const sequence=Array.from({length:steps+5},(_,i)=>Object.keys(art)[(i*3+c+i%4)%6]);before[c].forEach((k,r)=>sequence[steps+r]=k);end.forEach((k,r)=>sequence[r]=k);return {steps,sequence,duration:reduced?150:(fast?520:1120)+c*(fast?120:350)};});}
+ const sprites=new Map(),streaks=new Map();
+ function drawSymbol(ctx,image,kind,x,y,moving=false){const a=art[kind],sw=a.box[2],sh=a.box[3],dx=x+(W-sw)/2,dy=y+(H-sh)/2;
   let sprite=sprites.get(kind);if(!sprite){sprite=document.createElement('canvas');sprite.width=sw;sprite.height=sh;const sc=sprite.getContext('2d');sc.beginPath();a.path.forEach(([px,py],i)=>sc[i?'lineTo':'moveTo'](px*sw,py*sh));sc.closePath();sc.clip();sc.drawImage(image,...a.box,0,0,sw,sh);sprites.set(kind,sprite);}
-  ctx.drawImage(sprite,dx,dy,sw,sh);
+  if(moving){let streak=streaks.get(kind);if(!streak){streak=document.createElement('canvas');streak.width=sw+12;streak.height=sh+180;const sc=streak.getContext('2d');sc.filter='blur(3px)';sc.globalCompositeOperation='lighter';sc.globalAlpha=1/17;for(let off=-60;off<=60;off+=6)sc.drawImage(sprite,6,90+off);streaks.set(kind,streak);}ctx.drawImage(streak,dx-6,dy-90);}
+  else ctx.drawImage(sprite,dx,dy,sw,sh);
  }
  function draw(ctx,image,grid,spins,elapsed){
   for(let c=0;c<5;c++){
    const x=X[c];ctx.save();ctx.beginPath();ctx.rect(x,Y,W,H*3);ctx.clip();
    const bg=ctx.createLinearGradient(x,0,x+W,0);bg.addColorStop(0,'#300246');bg.addColorStop(.48,'#790698');bg.addColorStop(1,'#31013e');ctx.fillStyle=bg;ctx.fillRect(x,Y,W,H*3);
-   ctx.strokeStyle='#bc57c020';ctx.lineWidth=1;ctx.beginPath();for(let yy=Y-12;yy<Y+H*3+24;yy+=18)for(let xx=x-12;xx<x+W+12;xx+=24){ctx.moveTo(xx,yy);ctx.lineTo(xx+12,yy+9);ctx.lineTo(xx,yy+18);ctx.lineTo(xx-12,yy+9);ctx.closePath();}ctx.stroke();
-   const spin=spins?.[c];if(spin&&elapsed<spin.duration){const t=elapsed/spin.duration,d=spin.steps*progress(t),blur=t>.12&&t<.72?5:0;ctx.filter=blur?'blur('+blur+'px)':'none';for(let j=Math.floor(-d)-1;j<Math.ceil(3-d)+1;j++){const k=spin.sequence[j+spin.steps];if(k){const yy=Y+(j+d)*H;if(blur){ctx.globalAlpha=.14;for(const offset of [-36,-18,18,36])drawSymbol(ctx,image,k,x,yy+offset);ctx.globalAlpha=.6;}drawSymbol(ctx,image,k,x,yy);ctx.globalAlpha=1;}}ctx.filter='none';}
+   ctx.strokeStyle=spins?.[c]&&elapsed<spins[c].duration?'#bc57c006':'#bc57c020';ctx.lineWidth=1;ctx.beginPath();for(let yy=Y-12;yy<Y+H*3+24;yy+=18)for(let xx=x-12;xx<x+W+12;xx+=24){ctx.moveTo(xx,yy);ctx.lineTo(xx+12,yy+9);ctx.lineTo(xx,yy+18);ctx.lineTo(xx-12,yy+9);ctx.closePath();}ctx.stroke();
+   const spin=spins?.[c];if(spin&&elapsed<spin.duration){const t=elapsed/spin.duration,d=spin.steps*progress(t),moving=t>.06&&t<.90;
+    for(let j=Math.floor(-d)-2;j<Math.ceil(3-d)+2;j++){const k=spin.sequence[j+spin.steps];if(k)drawSymbol(ctx,image,k,x,Y+(j+d)*H,moving);}
+   }
    else grid[c].forEach((k,r)=>drawSymbol(ctx,image,k,x,Y+r*H));
    const shade=ctx.createLinearGradient(0,Y,0,Y+3*H);shade.addColorStop(0,'#ffffff48');shade.addColorStop(.1,'#ffffff00');shade.addColorStop(.87,'#00000000');shade.addColorStop(1,'#18002288');ctx.fillStyle=shade;ctx.fillRect(x,Y,W,H*3);ctx.restore();
   }
+  // The reference has two traveling highlights along each moving separator.
+  if(spins)for(let c=0;c<4;c++){if(elapsed>=spins[c+1].duration)continue;const x=X[c]+W+8;ctx.save();ctx.beginPath();ctx.rect(x-17,Y,34,H*3);ctx.clip();ctx.globalCompositeOperation='lighter';for(let n=0;n<2;n++){const yy=Y+((elapsed*.24+n*195)%(H*3));const glow=ctx.createLinearGradient(0,yy-55,0,yy+55);glow.addColorStop(0,'#ff00b000');glow.addColorStop(.42,'#ff20bd88');glow.addColorStop(.5,'#fff9efff');glow.addColorStop(.58,'#ff20bd88');glow.addColorStop(1,'#ff00b000');ctx.fillStyle=glow;ctx.fillRect(x-9,yy-55,18,110);ctx.fillStyle='#ffffffe0';ctx.fillRect(x-15,yy-1,30,2);}ctx.restore();}
  }
  const api={progress,plan,draw,initial};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ReelView=api;
 })(globalThis);
