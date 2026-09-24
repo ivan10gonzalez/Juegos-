@@ -35,3 +35,6 @@ Render: sitio estático. El Blueprint `render.yaml` copia los recursos a `dist`.
 Pruebas del modelo: `node tests.cjs`.
 
 Para añadir otro ejemplo, crear su página y agregar una tarjeta con enlaces relativos en `index.html`.
+
+
+Actualización de referencia del 24/09: pantalla base limpia del segundo video, recorte que excluye la barra Panel, selector de monedas por línea/valor/total, ajustes de autoplay y vista Hyperplay. El audio opcional utiliza 30 segundos de la grabación aportada; se activa desde el menú. Hyperplay simula las rondas sin animación de rodillos y permite pausar. El modelo didáctico conserva el límite de diez rondas por sesión. La fidelidad visual de los diálogos todavía requiere comparación en un navegador; no se afirma una reproducción píxel a píxel.
