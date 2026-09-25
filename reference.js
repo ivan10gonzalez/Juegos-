@@ -13,7 +13,14 @@ function paint(){
  if(grid)ReelView.draw(ctx,image,grid,spinPlan,spinElapsed);
  // Visible provenance replaces the captured provider/session identifier.
  ctx.fillStyle='#100015';ctx.fillRect(0,1390,886,32);ctx.fillStyle='#bba9bf';ctx.font='17px Arial';ctx.textAlign='center';ctx.fillText('DEMO EDUCATIVA · FICHAS FICTICIAS · SIN PREMIOS REALES',443,1410);
- if(changed){ctx.fillStyle='#100015';ctx.fillRect(0,1353,886,42);ctx.textAlign='center';ctx.font='bold 27px Arial';ctx.fillStyle='#fff';ctx.fillText('CRÉDITO '+format(balance)+' ARS   APUESTA '+format(stake)+' ARS',443,1379);}
+ // One footer renderer for initial load, spinning, stopped and reset states.
+ ctx.save();ctx.fillStyle='#100015';ctx.fillRect(0,1353,886,42);
+ ctx.drawImage(image,153,1670,116,31,153,1352,116,31);
+ ctx.drawImage(image,484,1670,118,31,484,1352,118,31);
+ ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.font='28px Impact, Arial Narrow, Arial';ctx.fillStyle='#fff';
+ ctx.scale(1.25,1);ctx.fillText(format(balance)+' ARS',275/1.25,1379,196/1.25);
+ ctx.fillText(format(stake)+' ARS',610/1.25,1379,210/1.25);ctx.restore();
+
  if(phase==='spin'||phase==='end'||(phase==='complete'&&lastPayout>0)){
   // This source band is below the original lettering and above the spin button.
   if(!statusPatch){statusPatch=document.createElement('canvas');statusPatch.width=886;statusPatch.height=100;const p=statusPatch.getContext('2d');p.drawImage(image,0,1132,886,20,0,0,886,100);p.globalCompositeOperation='destination-in';const fade=p.createLinearGradient(0,0,0,100);fade.addColorStop(0,'#0000');fade.addColorStop(.16,'#000');fade.addColorStop(.8,'#000');fade.addColorStop(1,'#0000');p.fillStyle=fade;p.fillRect(0,0,886,100);}

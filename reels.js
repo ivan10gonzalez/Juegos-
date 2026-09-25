@@ -20,7 +20,7 @@
  const sprites=new Map(),streaks=new Map();
  function drawSymbol(ctx,image,kind,x,y,moving=false){const a=art[kind],sw=a.box[2],sh=a.box[3],dx=x+(W-sw)/2,dy=y+(H-sh)/2;
   let sprite=sprites.get(kind);if(!sprite){sprite=document.createElement('canvas');sprite.width=sw;sprite.height=sh;const sc=sprite.getContext('2d');sc.beginPath();a.path.forEach(([px,py],i)=>sc[i?'lineTo':'moveTo'](px*sw,py*sh));sc.closePath();sc.clip();sc.drawImage(image,...a.box,0,0,sw,sh);sprites.set(kind,sprite);}
-  if(moving){let streak=streaks.get(kind);if(!streak){streak=document.createElement('canvas');streak.width=sw+12;streak.height=sh+180;const sc=streak.getContext('2d');sc.filter='blur(3px)';sc.globalCompositeOperation='lighter';sc.globalAlpha=1/17;for(let off=-60;off<=60;off+=6)sc.drawImage(sprite,6,90+off);streaks.set(kind,streak);}ctx.drawImage(streak,dx-6,dy-90);}
+  if(moving){let streak=streaks.get(kind);if(!streak){streak=document.createElement('canvas');streak.width=sw+12;streak.height=sh+180;const sc=streak.getContext('2d');sc.filter='blur(3px)';sc.globalAlpha=1/17;for(let off=-60;off<=60;off+=6)sc.drawImage(sprite,6,90+off);streaks.set(kind,streak);}ctx.drawImage(streak,dx-6,dy-90);}
   else ctx.drawImage(sprite,dx,dy,sw,sh);
  }
  function draw(ctx,image,grid,spins,elapsed){
@@ -34,8 +34,7 @@
    else grid[c].forEach((k,r)=>drawSymbol(ctx,image,k,x,Y+r*H));
    const shade=ctx.createLinearGradient(0,Y,0,Y+3*H);shade.addColorStop(0,'#ffffff48');shade.addColorStop(.1,'#ffffff00');shade.addColorStop(.87,'#00000000');shade.addColorStop(1,'#18002288');ctx.fillStyle=shade;ctx.fillRect(x,Y,W,H*3);ctx.restore();
   }
-  // The reference has two traveling highlights along each moving separator.
-  if(spins)for(let c=0;c<4;c++){if(elapsed>=spins[c+1].duration)continue;const x=X[c]+W+8;ctx.save();ctx.beginPath();ctx.rect(x-17,Y,34,H*3);ctx.clip();ctx.globalCompositeOperation='lighter';for(let n=0;n<2;n++){const yy=Y+((elapsed*.24+n*195)%(H*3));const glow=ctx.createLinearGradient(0,yy-55,0,yy+55);glow.addColorStop(0,'#ff00b000');glow.addColorStop(.42,'#ff20bd88');glow.addColorStop(.5,'#fff9efff');glow.addColorStop(.58,'#ff20bd88');glow.addColorStop(1,'#ff00b000');ctx.fillStyle=glow;ctx.fillRect(x-9,yy-55,18,110);ctx.fillStyle='#ffffffe0';ctx.fillRect(x-15,yy-1,30,2);}ctx.restore();}
+
  }
  const api={progress,plan,draw,initial};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ReelView=api;
 })(globalThis);
