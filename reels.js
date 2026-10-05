@@ -1,40 +1,41 @@
-/* Rendering only: spin timing never selects or changes the paid result. */
+/* The renderer consumes a result; it never chooses or modifies a paid outcome. */
 (function(root){
- const H=123,Y=426,X=[22,194,366,537,708],W=157;
+ const H=123,Y=426,columns=[[20,192,104],[194,362,278],[364,531,447],[534,701,618],[704,868,790]];
  const art={
-  star:{box:[32,866,134,116],path:[[.04,.71],[.12,.60],[.16,.20],[.27,.08],[.50,.04],[.68,.12],[.76,.31],[.82,.36],[.84,.49],[.96,.37],[1,.51],[.99,.70],[.90,.81],[.67,.82],[.51,.70],[.36,.94],[.15,.97],[.02,.90]]},
-  mask:{box:[29,984,146,129],path:[[.03,.56],[.06,.37],[.14,.19],[.34,.17],[.47,.04],[.68,.01],[.87,.10],[.85,.20],[.94,.35],[1,.51],[.93,.64],[.79,.58],[.76,.69],[.96,.88],[.71,.87],[.67,.99],[.48,.85],[.29,1],[.25,.82],[.06,.88],[.20,.66],[.06,.66]]},
-  ruby:{box:[216,750,116,108],path:[[.03,.36],[.20,.16],[.75,.16],[.77,.04],[.79,.16],[.83,.17],[.96,.33],[.98,.46],[.53,.98],[.45,.98],[.01,.47]]},
-  emerald:{box:[380,749,133,108],path:[[.02,.10],[.12,.02],[.30,.12],[.59,.24],[.84,.41],[.98,.58],[.97,.76],[.77,.99],[.54,.92],[.40,.72],[.26,.43],[.10,.22],[.05,.40],[0,.36]]},
-  orb:{box:[565,754,105,104],path:[[.09,.30],[.24,.12],[.48,.05],[.73,.14],[.86,.08],[.88,.22],[.95,.37],[.97,.68],[.81,.90],[.55,.99],[.25,.91],[.07,.72],[.02,.48]]},
-  gem:{box:[54,754,101,96],path:[[.02,.42],[.36,.02],[.69,.02],[.84,.23],[.86,.34],[.98,.43],[.98,.65],[.62,.98],[.36,.97],[.01,.66]]}
+  star:{box:[29,868,139,113]},mask:{atlas:'symbols',box:[1,858,157,154],scale:.87},
+  ruby:{box:[216,875,116,108]},emerald:{box:[380,875,133,108]},
+  orb:{box:[565,879,105,104]},gem:{box:[738,877,101,96]},
+  bonus:{atlas:'symbols',box:[365,866,157,141],scale:.88},clubs:{atlas:'symbols',box:[557,731,140,132],scale:.88}
  };
  const initial=[['gem','star','mask'],['ruby','ruby','ruby'],['emerald','emerald','ruby'],['orb','orb','star'],['gem','gem','star']];
- function progress(t){t=Math.max(0,Math.min(1,t)); // integrated acceleration, cruise, deceleration
-  const a=.065,b=.88,area=a/2+(b-a)+(1-b)/2;
-  if(t<a)return t*t/(2*a*area);
-  if(t<b)return (a/2+t-a)/area;
-  const u=t-b;return (a/2+b-a+u-u*u/(2*(1-b)))/area;
+ let atlases={},background=null;const sprites=new Map(),streaks=new Map();
+ function configure(images){atlases=images;sprites.clear();streaks.clear();background=null;}
+ function surface(w,h){const s=document.createElement('canvas');s.width=Math.ceil(w);s.height=Math.ceil(h);return s;}
+ // Flood only exterior purple pixels. The coloured outline and interior of each
+ // symbol remain intact, unlike the polygon cuts used by the earlier version.
+ function matte(s){const c=s.getContext('2d'),im=c.getImageData(0,0,s.width,s.height),d=im.data,w=s.width,h=s.height,seen=new Uint8Array(w*h),queue=new Int32Array(w*h);let head=0,tail=0;
+  const visit=i=>{if(i<0||i>=w*h||seen[i])return;seen[i]=1;const p=i*4,r=d[p],g=d[p+1],b=d[p+2];if((b>r*1.025&&g<b*.59)||(b>r*.96&&g<b*.56&&r<78)){queue[tail++]=i;d[p+3]=0;}};
+  for(let x=0;x<w;x++){visit(x);visit((h-1)*w+x);}for(let y=0;y<h;y++){visit(y*w);visit(y*w+w-1);}
+  while(head<tail){const i=queue[head++],x=i%w;visit(i-w);visit(i+w);if(x)visit(i-1);if(x<w-1)visit(i+1);}
+  c.putImageData(im,0,0);return s;
  }
- function plan(before,result,fast,reduced){return result.map((end,c)=>{const steps=reduced?0:24+c*8;const sequence=Array.from({length:steps+5},(_,i)=>Object.keys(art)[(i*3+c+i%4)%6]);before[c].forEach((k,r)=>sequence[steps+r]=k);end.forEach((k,r)=>sequence[r]=k);return {steps,sequence,duration:reduced?150:(fast?520:1120)+c*(fast?120:350)};});}
- const sprites=new Map(),streaks=new Map();
- function drawSymbol(ctx,image,kind,x,y,moving=false){const a=art[kind],sw=a.box[2],sh=a.box[3],dx=x+(W-sw)/2,dy=y+(H-sh)/2;
-  let sprite=sprites.get(kind);if(!sprite){sprite=document.createElement('canvas');sprite.width=sw;sprite.height=sh;const sc=sprite.getContext('2d');sc.beginPath();a.path.forEach(([px,py],i)=>sc[i?'lineTo':'moveTo'](px*sw,py*sh));sc.closePath();sc.clip();sc.drawImage(image,...a.box,0,0,sw,sh);sprites.set(kind,sprite);}
-  if(moving){let streak=streaks.get(kind);if(!streak){streak=document.createElement('canvas');streak.width=sw+12;streak.height=sh+180;const sc=streak.getContext('2d');sc.filter='blur(3px)';sc.globalAlpha=1/17;for(let off=-60;off<=60;off+=6)sc.drawImage(sprite,6,90+off);streaks.set(kind,streak);}ctx.drawImage(streak,dx-6,dy-90);}
-  else ctx.drawImage(sprite,dx,dy,sw,sh);
+ function sprite(image,kind){if(sprites.has(kind))return sprites.get(kind);const a=art[kind],raw=surface(a.box[2],a.box[3]);raw.getContext('2d').drawImage(a.atlas?atlases[a.atlas]:image,...a.box,0,0,raw.width,raw.height);matte(raw);const scale=a.scale||1,s=surface(raw.width*scale,raw.height*scale);s.getContext('2d').drawImage(raw,0,0,s.width,s.height);sprites.set(kind,s);return s;}
+ function drawSymbol(ctx,image,kind,cx,y,smear=0){const s=sprite(image,kind);if(smear){const key=kind+':'+smear;let strip=streaks.get(key);if(!strip){strip=surface(s.width+8,s.height+smear*2+8);const p=strip.getContext('2d');p.filter='blur(1.5px)';p.globalCompositeOperation='lighter';const count=21;p.globalAlpha=1/count;for(let i=0;i<count;i++)p.drawImage(s,4,4+2*smear*i/(count-1));streaks.set(key,strip);}ctx.drawImage(strip,cx-strip.width/2,y+(H-strip.height)/2);}
+  else ctx.drawImage(s,cx-s.width/2,y+(H-s.height)/2);
  }
- function draw(ctx,image,grid,spins,elapsed){
-  for(let c=0;c<5;c++){
-   const x=X[c];ctx.save();ctx.beginPath();ctx.rect(x,Y,W,H*3);ctx.clip();
-   const bg=ctx.createLinearGradient(x,0,x+W,0);bg.addColorStop(0,'#300246');bg.addColorStop(.48,'#790698');bg.addColorStop(1,'#31013e');ctx.fillStyle=bg;ctx.fillRect(x,Y,W,H*3);
-   ctx.strokeStyle=spins?.[c]&&elapsed<spins[c].duration?'#bc57c006':'#bc57c020';ctx.lineWidth=1;ctx.beginPath();for(let yy=Y-12;yy<Y+H*3+24;yy+=18)for(let xx=x-12;xx<x+W+12;xx+=24){ctx.moveTo(xx,yy);ctx.lineTo(xx+12,yy+9);ctx.lineTo(xx,yy+18);ctx.lineTo(xx-12,yy+9);ctx.closePath();}ctx.stroke();
-   const spin=spins?.[c];if(spin&&elapsed<spin.duration){const t=elapsed/spin.duration,d=spin.steps*progress(t),moving=t>.06&&t<.90;
-    for(let j=Math.floor(-d)-2;j<Math.ceil(3-d)+2;j++){const k=spin.sequence[j+spin.steps];if(k)drawSymbol(ctx,image,k,x,Y+(j+d)*H,moving);}
-   }
-   else grid[c].forEach((k,r)=>drawSymbol(ctx,image,k,x,Y+r*H));
-   const shade=ctx.createLinearGradient(0,Y,0,Y+3*H);shade.addColorStop(0,'#ffffff48');shade.addColorStop(.1,'#ffffff00');shade.addColorStop(.87,'#00000000');shade.addColorStop(1,'#18002288');ctx.fillStyle=shade;ctx.fillRect(x,Y,W,H*3);ctx.restore();
-  }
-
+ function progress(t){t=Math.max(0,Math.min(1,t));const a=.045,b=.9,area=a/2+b-a+(1-b)/2;if(t<a)return t*t/(2*a*area);if(t<b)return (a/2+t-a)/area;const u=t-b;return (a/2+b-a+u-u*u/(2*(1-b)))/area;}
+ function plan(before,result,fast,reduced){return result.map((end,c)=>{const steps=reduced?0:24+c*8,keys=Object.keys(art),sequence=Array.from({length:steps+6},(_,i)=>keys[(i*7+c*3+Math.floor(i/3))%keys.length]);before[c].forEach((k,r)=>sequence[steps+r]=k);end.forEach((k,r)=>sequence[r]=k);return {steps,sequence,duration:reduced?150:(fast?520:1120)+c*(fast?120:350)};});}
+ function backdrop(ctx,image,c,moving){const [left,right]=columns[c],width=right-left;
+  if(!background){background=surface(37,29);background.getContext('2d').drawImage(image,212,852,37,29,0,0,37,29);}
+  ctx.fillStyle='#700891';ctx.fillRect(left,Y,width,H*3);
+  ctx.save();ctx.globalAlpha=moving?.2:.9;ctx.fillStyle=ctx.createPattern(background,'repeat');ctx.fillRect(left,Y,width,H*3);ctx.restore();
+  const shade=ctx.createLinearGradient(left,0,right,0);shade.addColorStop(0,'#22003199');shade.addColorStop(.18,'#22003100');shade.addColorStop(.8,'#22003100');shade.addColorStop(1,'#22003199');ctx.fillStyle=shade;ctx.fillRect(left,Y,width,H*3);
  }
- const api={progress,plan,draw,initial};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ReelView=api;
+ function draw(ctx,image,grid,spins,elapsed){for(let c=0;c<5;c++){const [left,right,cx]=columns[c],spin=spins?.[c],active=spin&&elapsed<spin.duration;
+   ctx.save();ctx.beginPath();ctx.rect(left,Y,right-left,H*3);ctx.clip();backdrop(ctx,image,c,active);
+   if(active){const t=elapsed/spin.duration,d=spin.steps*progress(t),smear=t<.035?0:t>.965?0:t>.925?20:60;for(let j=Math.floor(-d)-2;j<Math.ceil(3-d)+2;j++){const k=spin.sequence[j+spin.steps];if(k)drawSymbol(ctx,image,k,cx,Y+(j+d)*H,smear);}}
+   else grid[c].forEach((k,r)=>drawSymbol(ctx,image,k,cx,Y+r*H));
+   const light=ctx.createLinearGradient(0,Y,0,Y+H*3);light.addColorStop(0,'#f2d1ec65');light.addColorStop(.1,'#fff0');light.addColorStop(.85,'#19002200');light.addColorStop(1,'#19002266');ctx.fillStyle=light;ctx.fillRect(left,Y,right-left,H*3);ctx.restore();
+  }for(const [x,w] of [[178,21],[353,14],[526,15],[695,17]])ctx.drawImage(image,x,741,w,372,x,423,w,372);}
+ const api={progress,plan,draw,initial,configure};if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.ReelView=api;
 })(globalThis);

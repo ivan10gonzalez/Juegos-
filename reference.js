@@ -2,6 +2,9 @@
 const $=s=>document.querySelector(s), canvas=$('#gameCanvas'),ctx=canvas.getContext('2d');
 const image=new Image();image.src='assets/reference-frame.jpg';
 // The complete original frame is retained as an atlas. Browser chrome is never drawn.
+const atlasSources={rules:'assets/reference-rules.jpg',symbols:'assets/reference-symbols.jpg',spin:'assets/reference-spin.jpg',hyper:'assets/reference-hyper.jpg'};
+const atlasImages=window.gameAssets||{};
+const atlasReady=window.gameAssets?Promise.resolve():Promise.all(Object.entries(atlasSources).map(([key,src])=>new Promise((resolve,reject)=>{const a=new Image();a.onload=()=>{atlasImages[key]=a;resolve();};a.onerror=reject;a.src=src;})));
 const FRAME={x:0,y:318,w:886,h:1414};
 let balance=533340,stake=250,rounds=[],grid=null,busy=false,ready=false,fast=false,animation=0,phase='idle',changed=false,muted=true;
 let statusPatch=null;
@@ -10,7 +13,7 @@ const format=value=>(value/100).toLocaleString('es-AR',{minimumFractionDigits:2,
 function base(){ctx.drawImage(image,FRAME.x,FRAME.y,FRAME.w,FRAME.h,0,0,886,1414);}
 function paint(){
  if(!ready)return;base();
- if(grid)ReelView.draw(ctx,image,grid,spinPlan,spinElapsed);
+ ReelView.draw(ctx,image,grid||ReelView.initial,spinPlan,spinElapsed);
  // Visible provenance replaces the captured provider/session identifier.
  ctx.fillStyle='#100015';ctx.fillRect(0,1390,886,32);ctx.fillStyle='#bba9bf';ctx.font='17px Arial';ctx.textAlign='center';ctx.fillText('DEMO EDUCATIVA · FICHAS FICTICIAS · SIN PREMIOS REALES',443,1410);
  // One footer renderer for initial load, spinning, stopped and reset states.
@@ -21,20 +24,19 @@ function paint(){
  ctx.scale(1.25,1);ctx.fillText(format(balance)+' ARS',275/1.25,1379,196/1.25);
  ctx.fillText(format(stake)+' ARS',610/1.25,1379,210/1.25);ctx.restore();
 
- if(phase==='spin'||phase==='end'||(phase==='complete'&&lastPayout>0)){
-  // This source band is below the original lettering and above the spin button.
-  if(!statusPatch){statusPatch=document.createElement('canvas');statusPatch.width=886;statusPatch.height=100;const p=statusPatch.getContext('2d');p.drawImage(image,0,1132,886,20,0,0,886,100);p.globalCompositeOperation='destination-in';const fade=p.createLinearGradient(0,0,0,100);fade.addColorStop(0,'#0000');fade.addColorStop(.16,'#000');fade.addColorStop(.8,'#000');fade.addColorStop(1,'#0000');p.fillStyle=fade;p.fillRect(0,0,886,100);}
-  ctx.drawImage(statusPatch,0,809);
-  const message=phase==='spin'?'¡BUENA SUERTE!':phase==='end'?'FIN DE LA DEMOSTRACIÓN':'GANANCIA '+format(lastPayout)+' ARS';
-  ctx.save();ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='900 38px Arial Narrow, Arial';ctx.shadowColor='#170020';ctx.shadowBlur=4;ctx.fillStyle='#fff';ctx.fillText(message,443,859,820);ctx.restore();
+ // Draw the entire controls surface as a single layer, avoiding visible patches.
+ ctx.drawImage(busy?atlasImages.spin:atlasImages.symbols,0,1168,886,506,0,813,886,455);
+ if(busy){ctx.save();ctx.fillStyle='#100015aa';for(const [x,w] of [[213,125],[451,94],[551,124]])ctx.fillRect(x,1268,w,73);ctx.restore();}
+ if(phase==='end'||(!busy&&lastPayout>0)){
+  ctx.fillStyle='#22022e';ctx.fillRect(55,835,776,64);ctx.textAlign='center';ctx.font='900 36px Arial Narrow,Arial';ctx.fillStyle='white';ctx.fillText(phase==='end'?'FIN DE LA DEMOSTRACIÓN':'GANANCIA '+format(lastPayout)+' ARS',443,880,740);
  }
- if(busy){ctx.save();ctx.fillStyle='#20092bbb';for(const x of [303,586]){ctx.beginPath();ctx.arc(x,1070,36,0,Math.PI*2);ctx.fill();}ctx.fillStyle='#24072c';ctx.beginPath();ctx.arc(443,1072,100,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ff5582';ctx.lineWidth=7;ctx.lineJoin='round';ctx.shadowColor='#ff2678';ctx.shadowBlur=3;ctx.strokeRect(416,1045,54,54);ctx.restore();}
+
 
 }
-function controls(){const stopped=rounds.length>=10;$('.spin-control').disabled=!ready||stopped;$('.spin-control').setAttribute('aria-label',busy?'Detener los rodillos':'Girar una ronda de demostración');for(const s of ['.plus-control','.minus-control','.stake-control','.reset-control'])$(s).disabled=!ready||busy;$('#resetMenu').disabled=busy;}
+function controls(){const stopped=rounds.length>=10;$('.spin-control').disabled=!ready||stopped;$('.spin-control').setAttribute('aria-label',busy?'Detener los rodillos':'Girar una ronda de demostración');for(const s of ['.plus-control','.minus-control','.stake-control','.reset-control','.sound-control','.info-control'])$(s).disabled=!ready||busy;$('#resetMenu').disabled=busy;}
 function info(){const used=rounds.reduce((s,r)=>s+r.stake,0),paid=rounds.reduce((s,r)=>s+r.payout,0);$('#summary').textContent=`${rounds.length} rondas · Usadas: ${format(used)} · Recibidas: ${format(paid)} · Neto: ${format(paid-used)} fichas.`;$('#history').replaceChildren();rounds.forEach((r,i)=>{const tr=document.createElement('tr');[String(i+1),format(r.stake),format(r.payout),format(r.payout-r.stake)].forEach(text=>{const td=document.createElement('td');td.textContent=text;tr.append(td);});$('#history').append(tr);});if(!$('#info').open)$('#info').showModal();}
 async function audioToggle(){const audio=$('#audio');if(muted){try{await audio.play();muted=false;}catch{$('#status').textContent='Tocá nuevamente para activar el audio.';return;}}else{audio.pause();muted=true;}$('#audioNote').textContent=muted?'DEMO · ♫ apagado':'DEMO · ♫ activado';}
-function changeStake(direction){if(busy)return;const values=[250,500,1000,1250,2000,2500,5000,10000,12500,25000,50000,100000,250000,500000,2500000];let i=values.findIndex(v=>v>=stake);stake=values[Math.max(0,Math.min(values.length-1,i+direction))];changed=true;paint();$('#status').textContent='Fichas por ronda: '+format(stake);}
+function changeStake(direction){if(busy)return;const values=[250,500,1000,1250,2000,2500,5000,10000,12500,25000,50000,100000,250000,500000,2500000];let i=values.findIndex(v=>v>=stake);stake=values[Math.max(0,Math.min(values.length-1,i+direction))];syncStake();changed=true;paint();$('#status').textContent='Fichas por ronda: '+format(stake);}
 function reset(){if(busy)return;clearInterval(autoTimer);remaining=0;balance=533340;rounds=[];grid=null;spinPlan=null;lastPayout=0;phase='idle';changed=stake!==250;paint();controls();$('#status').textContent='Demostración reiniciada.';}
 $('.spin-control').addEventListener('click',()=>{
  if(busy){finishRequested=true;return;}
@@ -55,15 +57,15 @@ $('.spin-control').addEventListener('click',()=>{
  }
  animation=requestAnimationFrame(frame);
 });
-$('.plus-control').addEventListener('click',()=>changeStake(1));$('.minus-control').addEventListener('click',()=>changeStake(-1));$('.reset-control').addEventListener('click',()=>$('#autoplay').showModal());$('.info-control').addEventListener('click',()=>$('#rules').showModal());$('.sound-control').addEventListener('click',()=>$('#hyperplay').showModal());$('.menu-control').addEventListener('click',()=>$('#menu').showModal());$('.stake-control').addEventListener('click',()=>(stakeFields(),$('#stakes').showModal()));$('.speed-control').addEventListener('click',()=>{fast=!fast;$('.speed-control').setAttribute('aria-pressed',String(fast));$('#status').textContent=fast?'Animación rápida':'Animación normal';});
+$('.plus-control').addEventListener('click',()=>changeStake(1));$('.minus-control').addEventListener('click',()=>changeStake(-1));$('.reset-control').addEventListener('click',()=>$('#autoplay').showModal());$('.info-control').addEventListener('click',()=>{drawRules();$('#rules').showModal();});$('.sound-control').addEventListener('click',()=>$('#hyperplay').showModal());$('.menu-control').addEventListener('click',()=>$('#menu').showModal());$('.stake-control').addEventListener('click',()=>(stakeFields(),$('#stakes').showModal()));$('.speed-control').addEventListener('click',()=>{fast=!fast;$('.speed-control').setAttribute('aria-pressed',String(fast));$('#status').textContent=fast?'Animación rápida':'Animación normal';});
 $('.fullscreen').addEventListener('click',async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('.reference-game').requestFullscreen();}catch{$('#status').textContent='La pantalla completa no está disponible en este navegador.';}});
 $('#openInfo').addEventListener('click',()=>{$('#menu').close();info();});$('#audioMenu').addEventListener('click',audioToggle);$('#resetMenu').addEventListener('click',()=>{reset();$('#menu').close();});
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>b.closest('dialog').close()));document.querySelectorAll('[data-stake]').forEach(b=>b.addEventListener('click',()=>{if(busy)return;stake=Number(b.dataset.stake);changed=true;paint();$('#stakes').close();}));
 document.addEventListener('visibilitychange',()=>{if(document.hidden)$('#audio').pause();else if(!muted)$('#audio').play().catch(()=>{});});
-image.onload=()=>{ready=true;paint();controls();};image.onerror=()=>{$('#status').textContent='No se pudo cargar la imagen de referencia. Recargá la página.';const p=document.createElement('p');p.className='loading-error';p.textContent='No se pudo cargar la imagen. Revisá la conexión y recargá.';$('.reference-game').append(p);};if(image.complete&&image.naturalWidth)image.onload();controls();
+image.onload=async()=>{try{await atlasReady;ReelView.configure(atlasImages);ready=true;paint();controls();}catch{$('#status').textContent='No se pudieron cargar los gráficos del juego. Recargá la página.';}};image.onerror=()=>{$('#status').textContent='No se pudo cargar la imagen de referencia. Recargá la página.';const p=document.createElement('p');p.className='loading-error';p.textContent='No se pudo cargar la imagen. Revisá la conexión y recargá.';$('.reference-game').append(p);};if(image.complete&&image.naturalWidth)image.onload();controls();
 
 let coins=1,coinIndex=0;const coinValues=[50,100,200,500,1000,2000,5000,10000,50000];
-function stakeFields(){document.querySelector('#coinCount').textContent=coins;document.querySelector('#coinValue').textContent=format(coinValues[coinIndex])+' ARS';document.querySelector('#totalStake').textContent=format(stake)+' ARS';}
+function stakeFields(){syncStake();document.querySelector('#coinCount').textContent=coins;document.querySelector('#coinValue').textContent=format(coinValues[coinIndex])+' ARS';document.querySelector('#totalStake').textContent=format(stake)+' ARS';}
 document.querySelectorAll('[data-adjust]').forEach(b=>b.onclick=()=>{const [field,d]=b.dataset.adjust.split(':');if(field==='coins')coins=Math.max(1,Math.min(10,coins+Number(d)));else if(field==='value')coinIndex=Math.max(0,Math.min(coinValues.length-1,coinIndex+Number(d)));else {changeStake(Number(d));stakeFields();return;}stake=5*coins*coinValues[coinIndex];changed=true;paint();stakeFields();});
 document.querySelector('#maxStake').onclick=()=>{coins=10;coinIndex=8;stake=2500000;changed=true;paint();stakeFields();};stakeFields();
 let autoTimer=null,remaining=0;
@@ -82,3 +84,6 @@ $('#hyperMinus').onclick=()=>{changeStake(-1);hyperFields();};$('#hyperPlus').on
 $('#hyperBetRange').oninput=e=>{stake=[250,500,1000,1250,2000,2500,5000,10000,12500,25000,50000,100000,250000,500000,2500000][Number(e.target.value)];changed=true;paint();hyperFields();};
 $('#hyperCount').oninput=hyperFields;for(const [id,dir] of [['#hyperCountMinus',-1],['#hyperCountPlus',1]])$(id).onclick=()=>{$('#hyperCount').value=Math.max(1,Math.min(100,Number($('#hyperCount').value)+dir));hyperFields();};
 $('.sound-control').addEventListener('click',hyperFields);$('#openHyper').addEventListener('click',hyperFields);
+
+function drawRules(){const c=$('#rulesCanvas').getContext('2d');c.drawImage(atlasImages.rules,32,335,826,1250,0,0,826,1250);const table=[[[250,50,10],0,0],[[1000,200,20],1,0],[[200,40,10],0,1],[[200,40,10],1,1],[[40,10,4],0,2],[[40,10,4],1,2],[[40,8,4],0,3],[[40,8,4,1],1,3]];c.font='22px Arial';c.textAlign='left';c.fillStyle='white';for(const [rates,col,row]of table){const x=col?475:138,y=[379,629,873,1104][row];c.fillStyle='#08050b';c.fillRect(x-4,y-3,294,rates.length*23+8);c.fillStyle='white';rates.forEach((rate,i)=>c.fillText((5-i)+' - '+format(stake*rate)+' ARS',x,y+20+i*23,287));}}
+function syncStake(){if(5*coins*coinValues[coinIndex]===stake)return true;let found=false;for(let i=0;i<coinValues.length;i++){const n=stake/(5*coinValues[i]);if(Number.isInteger(n)&&n>=1&&n<=10){coins=n;coinIndex=i;found=true;break;}}return found;}
